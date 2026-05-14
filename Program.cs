@@ -1,11 +1,13 @@
 using Scalar.AspNetCore;
 using trivia_game.Application.Interfaces;
+using trivia_game.Application.Options;
 using trivia_game.Application.Services;
 using trivia_game.Domain.Interfaces.Providers;
 using trivia_game.Domain.Interfaces.Repositories;
 using trivia_game.Infrastructure.ExternalApis.OpenTdb;
 using trivia_game.Infrastructure.Repositories;
 using trivia_game.Presentation.Hubs;
+using trivia_game.Presentation.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,10 +15,13 @@ builder.Services.AddControllers();
 builder.Services.AddSignalR();
 builder.Services.AddOpenApi();
 
+builder.Services.Configure<GameOptions>(builder.Configuration.GetSection("Game"));
+
 builder.Services
     .AddScoped<IRoomService, RoomService>()
     .AddScoped<ITriviaService, TriviaService>()
-    .AddScoped<IGameService, GameService>();
+    .AddSingleton<IGameService, GameService>()
+    .AddSingleton<IGameTimerService, GameTimerService>();
 
 builder.Services.AddSingleton<IRoomRepository, InMemoryRoomRepository>();
 

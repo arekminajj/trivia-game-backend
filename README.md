@@ -1,4 +1,4 @@
-# Trivia Game — Backend Service
+# Trivia Game - Backend Service
 
 Backend service for the mobile trivia game application developed for the **Programowanie aplikacji mobilnych** course.
 

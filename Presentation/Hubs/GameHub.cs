@@ -4,7 +4,7 @@ using trivia_game.Application.Interfaces;
 
 namespace trivia_game.Presentation.Hubs;
 
-public class GameHub(IGameService gameService) : Hub
+public class GameHub(IGameService gameService, IGameTimerService timerService) : Hub
 {
     /// <summary>
     /// Called after HTTP join/create so the player's SignalR connection joins the room group.
@@ -39,6 +39,7 @@ public class GameHub(IGameService gameService) : Hub
         }
 
         await Clients.Group(roomCode).SendAsync("GameStarted", result.FirstQuestion);
+        timerService.StartQuestionTimer(roomCode, result.FirstQuestion!.Index);
     }
 
     /// <summary>
@@ -60,11 +61,19 @@ public class GameHub(IGameService gameService) : Hub
 
         if (result.Outcome == SubmitAnswerOutcome.Accepted) return;
 
+        // All players answered before the timer — cancel it
+        timerService.CancelTimer(roomCode);
+
         await Clients.Group(roomCode).SendAsync("RoundEnded", result.RoundResult);
 
         if (result.Outcome == SubmitAnswerOutcome.GameOver)
+        {
             await Clients.Group(roomCode).SendAsync("GameEnded", result.FinalLeaderboard);
+        }
         else
+        {
             await Clients.Group(roomCode).SendAsync("QuestionReceived", result.NextQuestion);
+            timerService.StartQuestionTimer(roomCode, result.NextQuestion!.Index);
+        }
     }
 }

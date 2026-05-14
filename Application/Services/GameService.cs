@@ -1,6 +1,7 @@
 using trivia_game.Application.DTOs;
 using trivia_game.Application.Interfaces;
 using trivia_game.Application.Mappings;
+using trivia_game.Domain.Enums;
 using trivia_game.Domain.Interfaces.Repositories;
 
 namespace trivia_game.Application.Services;
@@ -46,6 +47,26 @@ public class GameService(IRoomRepository roomRepository) : IGameService
         if (!room.AllPlayersAnswered())
             return new SubmitAnswerResult(true, Outcome: SubmitAnswerOutcome.Accepted);
 
+        return FinalizeRound(room);
+    }
+
+    public SubmitAnswerResult TimeOutRound(string roomCode, int questionIndex)
+    {
+        if (!roomRepository.TryGet(roomCode, out var room))
+            return new SubmitAnswerResult(false, $"Room '{roomCode}' not found.");
+
+        // Guard against race: players may have answered naturally before the timer fired
+        if (room.Status != RoomStatus.InProgress || room.CurrentQuestionIndex != questionIndex)
+            return new SubmitAnswerResult(false, "Round already advanced.");
+
+        foreach (var member in room.Members.Where(m => !room.CurrentRoundAnswers.ContainsKey(m.Uuid)))
+            room.SubmitAnswer(member.Uuid, string.Empty);
+
+        return FinalizeRound(room);
+    }
+
+    private static SubmitAnswerResult FinalizeRound(Domain.Entities.Room room)
+    {
         var correctAnswer = room.CurrentQuestion!.CorrectAnswer;
         room.ScoreCurrentRound();
 
