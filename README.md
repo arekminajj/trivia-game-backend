@@ -61,6 +61,8 @@ Save `yourPlayerUuid` — it is required for all SignalR calls.
 
 ## SignalR Hub — `/hubs/game`
 
+> Full protocol spec: [docs/SIGNALR.md](docs/SIGNALR.md)
+
 Connect via the SignalR client after calling the REST join/create endpoint.
 
 ### Client → Server
