@@ -1,24 +1,29 @@
-using trivia_game.Clients;
-using trivia_game.Services;
-using trivia_game.Stores;
+using trivia_game.Application.Interfaces;
+using trivia_game.Application.Services;
+using trivia_game.Domain.Interfaces.Providers;
+using trivia_game.Domain.Interfaces.Repositories;
+using trivia_game.Infrastructure.ExternalApis.OpenTdb;
+using trivia_game.Infrastructure.Repositories;
+using trivia_game.Presentation.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
 
 builder.Services
-.AddScoped<ITriviaService, TriviaService>()
-.AddScoped<IRoomService, RoomService>()
-.AddScoped<ISocketService, SocketsService>();
+    .AddScoped<IRoomService, RoomService>()
+    .AddScoped<ITriviaService, TriviaService>()
+    .AddScoped<IGameService, GameService>();
 
-builder.Services.AddSingleton<IRoomStore, InMemoryRoomStore>();
+builder.Services.AddSingleton<IRoomRepository, InMemoryRoomRepository>();
 
-builder.Services.AddHttpClient<ITriviaClient, TriviaClient>(
-);
+builder.Services.AddHttpClient<ITriviaProvider, OpenTdbClient>(client =>
+    client.BaseAddress = new Uri("https://opentdb.com/"));
 
 var app = builder.Build();
 
 app.MapControllers();
-app.UseWebSockets();
+app.MapHub<GameHub>("/hubs/game");
 
 app.Run();
