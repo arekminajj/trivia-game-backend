@@ -42,7 +42,7 @@ public class GameService(IRoomRepository roomRepository) : IGameService
             return new SubmitAnswerResult(false, $"Room '{roomCode}' not found.");
 
         if (!room.SubmitAnswer(playerUuid, answer))
-            return new SubmitAnswerResult(false, "Could not record answer (game not in progress or unknown player).");
+            return new SubmitAnswerResult(false, "Could not record answer (game not in progress, unknown player, or invalid answer).");
 
         if (!room.AllPlayersAnswered())
             return new SubmitAnswerResult(true, Outcome: SubmitAnswerOutcome.Accepted);

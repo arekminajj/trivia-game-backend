@@ -40,6 +40,8 @@ public class Room
     {
         if (Status != RoomStatus.InProgress) return false;
         if (Members.All(m => m.Uuid != playerUuid)) return false;
+        // Empty string is the server-side timeout sentinel; any other value must be a valid choice
+        if (answer != string.Empty && !CurrentShuffledAnswers.Contains(answer)) return false;
         _currentRoundAnswers[playerUuid] = answer;
         return true;
     }
