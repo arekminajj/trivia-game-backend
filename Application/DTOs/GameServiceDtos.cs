@@ -43,6 +43,11 @@ public sealed record SubmitAnswerResult(
     QuestionResponse? NextQuestion = null,
     List<PlayerResponse>? FinalLeaderboard = null);
 
+public sealed record RestartGameResult(
+    bool Success,
+    string? Error = null,
+    RoomResponse? Room = null);
+
 public sealed record DisconnectFromRoomResult(
     bool Success,
     string? Error = null,
