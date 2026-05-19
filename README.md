@@ -134,6 +134,32 @@ The correct answer is **not** included. `answers` is shuffled consistently acros
 
 ---
 
+## Error handling
+
+All API errors are returned as structured JSON:
+
+```json
+{ "error": "Human-readable message" }
+```
+
+| HTTP status | Cause |
+|-------------|-------|
+| `400` | Invalid request parameters (e.g. bad question type or filter combination) |
+| `404` | Room not found |
+| `422` | Invalid game operation (e.g. non-owner trying to start) |
+| `503` | OpenTDB is unreachable after 3 retries with exponential back-off |
+| `500` | Unexpected server error |
+
+### Offline / OpenTDB unavailable
+
+Room creation (`POST /api/rooms`) fetches questions from [OpenTDB](https://opentdb.com/).
+If OpenTDB is unreachable the server retries the request **3 times** with exponential back-off
+(2 s → 4 s → 8 s). If all retries fail the endpoint returns `503 Service Unavailable` with an
+explanatory message. No game data is lost — in-progress rooms are unaffected because questions
+are fetched once at room creation and stored in memory for the duration of the game.
+
+---
+
 ## Integration tests
 
 ```bash
