@@ -13,7 +13,8 @@ public enum DisconnectOutcome
     RoundComplete,
     GameOver,
     RoomEmpty,
-    ReadyPhaseComplete
+    ReadyPhaseComplete,
+    RoomClosedByHost
 }
 
 public sealed record SignalReadyResult(

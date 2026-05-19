@@ -97,7 +97,11 @@ public class GameHub(IGameService gameService, IGameTimerService timerService) :
 
             var result = gameService.DisconnectFromRoom(roomCode, playerUuid);
 
-            if (result.Success && result.Outcome != DisconnectOutcome.RoomEmpty)
+            if (result.Success && result.Outcome == DisconnectOutcome.RoomClosedByHost)
+            {
+                await Clients.Group(roomCode).SendAsync("RoomClosed");
+            }
+            else if (result.Success && result.Outcome != DisconnectOutcome.RoomEmpty)
             {
                 await Clients.Group(roomCode).SendAsync("PlayerDisconnected", playerUuid);
 

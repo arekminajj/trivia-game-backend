@@ -72,6 +72,7 @@ public class GameService(IRoomRepository roomRepository) : IGameService
 
         bool wasInProgress = room.Status == RoomStatus.InProgress;
         bool hadAnswered = room.CurrentRoundAnswers.ContainsKey(playerUuid);
+        bool isOwner = room.Owner.Uuid == playerUuid;
 
         if (!room.RemoveMember(playerUuid))
             return new DisconnectFromRoomResult(false, "Player not found in room.");
@@ -80,6 +81,12 @@ public class GameService(IRoomRepository roomRepository) : IGameService
         {
             roomRepository.Remove(roomCode);
             return new DisconnectFromRoomResult(true, Outcome: DisconnectOutcome.RoomEmpty);
+        }
+
+        if (isOwner && !wasInProgress)
+        {
+            roomRepository.Remove(roomCode);
+            return new DisconnectFromRoomResult(true, Outcome: DisconnectOutcome.RoomClosedByHost, RoomCode: roomCode);
         }
 
         if (wasInProgress && !hadAnswered && room.AllPlayersAnswered())
