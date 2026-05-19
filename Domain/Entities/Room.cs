@@ -10,6 +10,7 @@ public class Room
     public List<RoomMember> Members { get; } = new();
     public DateTime CreatedAt { get; } = DateTime.UtcNow;
     public List<TriviaQuestion> Questions { get; init; } = new();
+    public string CategoryName { get; init; } = string.Empty;
     public RoomStatus Status { get; private set; } = RoomStatus.Waiting;
     public int CurrentQuestionIndex { get; private set; } = -1;
 
