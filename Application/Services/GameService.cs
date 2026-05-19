@@ -65,6 +65,83 @@ public class GameService(IRoomRepository roomRepository) : IGameService
         return FinalizeRound(room);
     }
 
+    public DisconnectFromRoomResult DisconnectFromRoom(string roomCode, string playerUuid)
+    {
+        if (!roomRepository.TryGet(roomCode, out var room))
+            return new DisconnectFromRoomResult(false, $"Room '{roomCode}' not found.");
+
+        bool wasInProgress = room.Status == RoomStatus.InProgress;
+        bool hadAnswered = room.CurrentRoundAnswers.ContainsKey(playerUuid);
+
+        if (!room.RemoveMember(playerUuid))
+            return new DisconnectFromRoomResult(false, "Player not found in room.");
+
+        if (room.Members.Count == 0)
+        {
+            roomRepository.Remove(roomCode);
+            return new DisconnectFromRoomResult(true, Outcome: DisconnectOutcome.RoomEmpty);
+        }
+
+        if (wasInProgress && !hadAnswered && room.AllPlayersAnswered())
+        {
+            var finalized = FinalizeRound(room);
+            return new DisconnectFromRoomResult(true,
+                Outcome: finalized.Outcome == SubmitAnswerOutcome.GameOver
+                    ? DisconnectOutcome.GameOver
+                    : DisconnectOutcome.RoundComplete,
+                RoomCode: roomCode,
+                RoundResult: finalized.RoundResult,
+                NextQuestion: finalized.NextQuestion,
+                FinalLeaderboard: finalized.FinalLeaderboard);
+        }
+
+        if (wasInProgress && room.AllPlayersReady())
+        {
+            room.ClearReady();
+            if (room.Status == RoomStatus.Finished)
+            {
+                var leaderboard = room.Members
+                    .OrderByDescending(m => m.Points)
+                    .Select(RoomMapper.ToPlayer)
+                    .ToList();
+                return new DisconnectFromRoomResult(true,
+                    Outcome: DisconnectOutcome.ReadyPhaseComplete,
+                    RoomCode: roomCode,
+                    FinalLeaderboard: leaderboard);
+            }
+            return new DisconnectFromRoomResult(true,
+                Outcome: DisconnectOutcome.ReadyPhaseComplete,
+                RoomCode: roomCode,
+                NextQuestion: RoomMapper.ToQuestion(room));
+        }
+
+        return new DisconnectFromRoomResult(true, Outcome: DisconnectOutcome.PlayerRemoved, RoomCode: roomCode);
+    }
+
+    public SignalReadyResult SignalPlayerReady(string roomCode, string playerUuid)
+    {
+        if (!roomRepository.TryGet(roomCode, out var room))
+            return new SignalReadyResult(false, Error: $"Room '{roomCode}' not found.");
+
+        room.SignalReady(playerUuid);
+
+        if (!room.AllPlayersReady())
+            return new SignalReadyResult(true, AllReady: false);
+
+        room.ClearReady();
+
+        if (room.Status == RoomStatus.Finished)
+        {
+            var leaderboard = room.Members
+                .OrderByDescending(m => m.Points)
+                .Select(RoomMapper.ToPlayer)
+                .ToList();
+            return new SignalReadyResult(true, AllReady: true, FinalLeaderboard: leaderboard);
+        }
+
+        return new SignalReadyResult(true, AllReady: true, NextQuestion: RoomMapper.ToQuestion(room));
+    }
+
     private static SubmitAnswerResult FinalizeRound(Domain.Entities.Room room)
     {
         var correctAnswer = room.CurrentQuestion!.CorrectAnswer;

@@ -20,6 +20,9 @@ public class GameHub(IGameService gameService, IGameTimerService timerService) :
             return;
         }
 
+        Context.Items["roomCode"] = roomCode;
+        Context.Items["playerUuid"] = playerUuid;
+
         await Groups.AddToGroupAsync(Context.ConnectionId, roomCode);
         await Clients.OthersInGroup(roomCode).SendAsync("PlayerConnected", result.Player);
         await Clients.Caller.SendAsync("ConnectedToRoom", result.Room);
@@ -65,15 +68,61 @@ public class GameHub(IGameService gameService, IGameTimerService timerService) :
         timerService.CancelTimer(roomCode);
 
         await Clients.Group(roomCode).SendAsync("RoundEnded", result.RoundResult);
+        timerService.StartReadyTimer(roomCode, result.NextQuestion, result.FinalLeaderboard);
+    }
 
-        if (result.Outcome == SubmitAnswerOutcome.GameOver)
-        {
+    public async Task PlayerReady(string roomCode, string playerUuid)
+    {
+        var result = gameService.SignalPlayerReady(roomCode, playerUuid);
+        if (!result.Success || !result.AllReady) return;
+
+        if (!timerService.CancelReadyTimer(roomCode)) return;
+
+        if (result.FinalLeaderboard != null)
             await Clients.Group(roomCode).SendAsync("GameEnded", result.FinalLeaderboard);
-        }
         else
         {
             await Clients.Group(roomCode).SendAsync("QuestionReceived", result.NextQuestion);
             timerService.StartQuestionTimer(roomCode, result.NextQuestion!.Index);
         }
+    }
+
+    public override async Task OnDisconnectedAsync(Exception? exception)
+    {
+        if (Context.Items.TryGetValue("roomCode", out var rc) &&
+            Context.Items.TryGetValue("playerUuid", out var pu))
+        {
+            var roomCode = (string)rc!;
+            var playerUuid = (string)pu!;
+
+            var result = gameService.DisconnectFromRoom(roomCode, playerUuid);
+
+            if (result.Success && result.Outcome != DisconnectOutcome.RoomEmpty)
+            {
+                await Clients.Group(roomCode).SendAsync("PlayerDisconnected", playerUuid);
+
+                if (result.Outcome == DisconnectOutcome.RoundComplete || result.Outcome == DisconnectOutcome.GameOver)
+                {
+                    timerService.CancelTimer(roomCode);
+                    await Clients.Group(roomCode).SendAsync("RoundEnded", result.RoundResult);
+                    timerService.StartReadyTimer(roomCode, result.NextQuestion, result.FinalLeaderboard);
+                }
+                else if (result.Outcome == DisconnectOutcome.ReadyPhaseComplete)
+                {
+                    if (timerService.CancelReadyTimer(roomCode))
+                    {
+                        if (result.FinalLeaderboard != null)
+                            await Clients.Group(roomCode).SendAsync("GameEnded", result.FinalLeaderboard);
+                        else
+                        {
+                            await Clients.Group(roomCode).SendAsync("QuestionReceived", result.NextQuestion);
+                            timerService.StartQuestionTimer(roomCode, result.NextQuestion!.Index);
+                        }
+                    }
+                }
+            }
+        }
+
+        await base.OnDisconnectedAsync(exception);
     }
 }

@@ -90,6 +90,22 @@ Alice (owner)                  Server                      Bob (player)
      │                            │   [new timer starts]        │
 ```
 
+### Disconnection path (a player drops mid-game)
+
+```
+Alice (owner)                  Server                      Bob (player)
+     │                            │                             │
+     │         ... game in progress, Bob hasn't answered ...    │
+     │                            │      [Bob disconnects]      X
+     │◄─ PlayerDisconnected ──────│                             
+     │   (Bob's playerUuid)       │                             
+     │◄─ RoundEnded ──────────────│  (Bob was last to answer)  
+     │◄─ QuestionReceived(Qn) ────│  (game continues)          
+     │                            │   [new timer starts]       
+```
+
+If the disconnecting player had already submitted their answer, only `PlayerDisconnected` is sent and the round proceeds normally. If all remaining players leave, the room is deleted silently with no events.
+
 ---
 
 ## Client → Server Methods
@@ -182,6 +198,18 @@ Sent to **all other players** when someone calls `ConnectToRoom`.
 
 ---
 
+### `PlayerDisconnected`
+
+Sent to **all remaining players** when a player's SignalR connection drops.
+
+```json
+"3f1db16a-..."
+```
+
+Plain string — the disconnected player's UUID. Update your local player list and handle the case where the disconnected player is no longer in the game. If the disconnected player was the last one yet to answer the current question, `RoundEnded` (and `QuestionReceived` or `GameEnded`) will follow immediately.
+
+---
+
 ### `GameStarted`
 
 Sent to **all players** when the owner starts the game. Contains the first question.
@@ -220,7 +248,7 @@ Always followed immediately by `RoundEnded`. Use this to show a timeout indicato
 
 ### `RoundEnded`
 
-Sent to **all players** when a round closes (either all answered or timer expired).
+Sent to **all players** when a round closes (all answered, timer expired, or the last pending player disconnected).
 
 ```json
 {
@@ -314,3 +342,5 @@ The client does not need to manage the timer — it is purely server-side. You m
 | Game already started | `Error` | Caller |
 | `SubmitAnswer` when game not in progress | `Error` | Caller |
 | Answer submitted twice | second answer overwrites first | — |
+| Player disconnects mid-game | `PlayerDisconnected` (+ possible `RoundEnded` / `QuestionReceived` / `GameEnded`) | Group |
+| All players disconnect | room deleted silently | — |

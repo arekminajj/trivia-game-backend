@@ -17,6 +17,7 @@ public class Room
     public List<string> CurrentShuffledAnswers { get; private set; } = new();
 
     private readonly Dictionary<string, string> _currentRoundAnswers = new();
+    private readonly HashSet<string> _readyPlayers = new();
     public IReadOnlyDictionary<string, string> CurrentRoundAnswers => _currentRoundAnswers;
 
     public TriviaQuestion? CurrentQuestion =>
@@ -44,7 +45,21 @@ public class Room
     }
 
     public bool AllPlayersAnswered() =>
-        Members.All(m => _currentRoundAnswers.ContainsKey(m.Uuid));
+        Members.Count > 0 && Members.All(m => _currentRoundAnswers.ContainsKey(m.Uuid));
+
+    public void SignalReady(string playerUuid) => _readyPlayers.Add(playerUuid);
+    public bool AllPlayersReady() => Members.Count > 0 && Members.All(m => _readyPlayers.Contains(m.Uuid));
+    public void ClearReady() => _readyPlayers.Clear();
+
+    public bool RemoveMember(string playerUuid)
+    {
+        var member = Members.FirstOrDefault(m => m.Uuid == playerUuid);
+        if (member is null) return false;
+        Members.Remove(member);
+        _currentRoundAnswers.Remove(playerUuid);
+        _readyPlayers.Remove(playerUuid);
+        return true;
+    }
 
     public void ScoreCurrentRound()
     {

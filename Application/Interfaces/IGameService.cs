@@ -8,4 +8,6 @@ public interface IGameService
     StartGameResult StartGame(string roomCode, string playerUuid);
     SubmitAnswerResult SubmitAnswer(string roomCode, string playerUuid, string answer);
     SubmitAnswerResult TimeOutRound(string roomCode, int questionIndex);
+    DisconnectFromRoomResult DisconnectFromRoom(string roomCode, string playerUuid);
+    SignalReadyResult SignalPlayerReady(string roomCode, string playerUuid);
 }
