@@ -1,4 +1,5 @@
 using trivia_game.Application.DTOs;
+using trivia_game.Domain.Entities;
 
 namespace trivia_game.Application.Interfaces;
 
@@ -10,4 +11,5 @@ public interface IGameService
     SubmitAnswerResult TimeOutRound(string roomCode, int questionIndex);
     DisconnectFromRoomResult DisconnectFromRoom(string roomCode, string playerUuid);
     SignalReadyResult SignalPlayerReady(string roomCode, string playerUuid);
+    RestartGameResult RestartGame(string roomCode, string playerUuid, List<TriviaQuestion> questions, string categoryName);
 }

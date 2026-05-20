@@ -13,7 +13,8 @@ public enum DisconnectOutcome
     RoundComplete,
     GameOver,
     RoomEmpty,
-    ReadyPhaseComplete
+    ReadyPhaseComplete,
+    RoomClosedByHost
 }
 
 public sealed record SignalReadyResult(
@@ -41,6 +42,11 @@ public sealed record SubmitAnswerResult(
     RoundResultResponse? RoundResult = null,
     QuestionResponse? NextQuestion = null,
     List<PlayerResponse>? FinalLeaderboard = null);
+
+public sealed record RestartGameResult(
+    bool Success,
+    string? Error = null,
+    RoomResponse? Room = null);
 
 public sealed record DisconnectFromRoomResult(
     bool Success,

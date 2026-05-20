@@ -15,7 +15,8 @@ internal static class RoomMapper
         ToPlayer(room.Owner),
         room.Members.Select(ToPlayer).ToList(),
         room.Questions.Count,
-        room.CurrentQuestionIndex);
+        room.CurrentQuestionIndex,
+        room.CategoryName);
 
     public static QuestionResponse ToQuestion(Room room) => new(
         room.CurrentQuestionIndex,

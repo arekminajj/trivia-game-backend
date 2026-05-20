@@ -10,6 +10,7 @@ public class Room
     public List<RoomMember> Members { get; } = new();
     public DateTime CreatedAt { get; } = DateTime.UtcNow;
     public List<TriviaQuestion> Questions { get; init; } = new();
+    public string CategoryName { get; set; } = string.Empty;
     public RoomStatus Status { get; private set; } = RoomStatus.Waiting;
     public int CurrentQuestionIndex { get; private set; } = -1;
 
@@ -99,6 +100,23 @@ public class Room
         // Seed with room + question index so the order is deterministic for all clients
         var rng = new Random((Uuid + CurrentQuestionIndex).GetHashCode());
         CurrentShuffledAnswers = all.OrderBy(_ => rng.Next()).ToList();
+    }
+
+    public void Restart(List<TriviaQuestion> newQuestions, string newCategoryName)
+    {
+        Questions.Clear();
+        Questions.AddRange(newQuestions);
+        CategoryName = newCategoryName;
+        Status = RoomStatus.Waiting;
+        CurrentQuestionIndex = -1;
+        CurrentShuffledAnswers.Clear();
+        _currentRoundAnswers.Clear();
+        _readyPlayers.Clear();
+        foreach (var member in Members)
+        {
+            member.Points = 0;
+            member.CorrectAnswers = 0;
+        }
     }
 
     private static int PointsFor(string difficulty) => difficulty.ToLowerInvariant() switch

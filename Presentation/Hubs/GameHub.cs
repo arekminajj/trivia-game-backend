@@ -4,7 +4,7 @@ using trivia_game.Application.Interfaces;
 
 namespace trivia_game.Presentation.Hubs;
 
-public class GameHub(IGameService gameService, IGameTimerService timerService) : Hub
+public class GameHub(IGameService gameService, IGameTimerService timerService, ITriviaService triviaService) : Hub
 {
     /// <summary>
     /// Called after HTTP join/create so the player's SignalR connection joins the room group.
@@ -87,6 +87,24 @@ public class GameHub(IGameService gameService, IGameTimerService timerService) :
         }
     }
 
+    public async Task RestartGame(string roomCode, string playerUuid, int? categoryId)
+    {
+        var questions = await triviaService.GetQuestionsAsync(10, categoryId, null);
+        var categoryName = questions.FirstOrDefault()?.Category ?? string.Empty;
+
+        var result = gameService.RestartGame(roomCode, playerUuid, questions, categoryName);
+        if (!result.Success)
+        {
+            await Clients.Caller.SendAsync("Error", result.Error);
+            return;
+        }
+
+        timerService.CancelTimer(roomCode);
+        timerService.CancelReadyTimer(roomCode);
+
+        await Clients.Group(roomCode).SendAsync("GameRestarted", result.Room);
+    }
+
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
         if (Context.Items.TryGetValue("roomCode", out var rc) &&
@@ -97,7 +115,11 @@ public class GameHub(IGameService gameService, IGameTimerService timerService) :
 
             var result = gameService.DisconnectFromRoom(roomCode, playerUuid);
 
-            if (result.Success && result.Outcome != DisconnectOutcome.RoomEmpty)
+            if (result.Success && result.Outcome == DisconnectOutcome.RoomClosedByHost)
+            {
+                await Clients.Group(roomCode).SendAsync("RoomClosed");
+            }
+            else if (result.Success && result.Outcome != DisconnectOutcome.RoomEmpty)
             {
                 await Clients.Group(roomCode).SendAsync("PlayerDisconnected", playerUuid);
 
