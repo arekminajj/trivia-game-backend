@@ -482,3 +482,7 @@ $RECYCLE.BIN/
 *.swp
 
 CLAUDE.md
+
+# Cloudflare Tunnel
+.cloudflared/
+run.sh
