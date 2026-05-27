@@ -7,4 +7,5 @@ public interface IRoomRepository
     void Add(Room room);
     bool TryGet(string joinCode, out Room room);
     List<Room> GetAll();
+    void Remove(string joinCode);
 }

@@ -1,6 +1,7 @@
 using trivia_game.Application.DTOs;
 using trivia_game.Application.Interfaces;
 using trivia_game.Application.Mappings;
+using trivia_game.Domain.Entities;
 using trivia_game.Domain.Enums;
 using trivia_game.Domain.Interfaces.Repositories;
 
@@ -42,7 +43,7 @@ public class GameService(IRoomRepository roomRepository) : IGameService
             return new SubmitAnswerResult(false, $"Room '{roomCode}' not found.");
 
         if (!room.SubmitAnswer(playerUuid, answer))
-            return new SubmitAnswerResult(false, "Could not record answer (game not in progress or unknown player).");
+            return new SubmitAnswerResult(false, "Could not record answer (game not in progress, unknown player, or invalid answer).");
 
         if (!room.AllPlayersAnswered())
             return new SubmitAnswerResult(true, Outcome: SubmitAnswerOutcome.Accepted);
@@ -63,6 +64,103 @@ public class GameService(IRoomRepository roomRepository) : IGameService
             room.SubmitAnswer(member.Uuid, string.Empty);
 
         return FinalizeRound(room);
+    }
+
+    public DisconnectFromRoomResult DisconnectFromRoom(string roomCode, string playerUuid)
+    {
+        if (!roomRepository.TryGet(roomCode, out var room))
+            return new DisconnectFromRoomResult(false, $"Room '{roomCode}' not found.");
+
+        bool wasInProgress = room.Status == RoomStatus.InProgress;
+        bool hadAnswered = room.CurrentRoundAnswers.ContainsKey(playerUuid);
+        bool isOwner = room.Owner.Uuid == playerUuid;
+
+        if (!room.RemoveMember(playerUuid))
+            return new DisconnectFromRoomResult(false, "Player not found in room.");
+
+        if (room.Members.Count == 0)
+        {
+            roomRepository.Remove(roomCode);
+            return new DisconnectFromRoomResult(true, Outcome: DisconnectOutcome.RoomEmpty);
+        }
+
+        if (isOwner && !wasInProgress)
+        {
+            roomRepository.Remove(roomCode);
+            return new DisconnectFromRoomResult(true, Outcome: DisconnectOutcome.RoomClosedByHost, RoomCode: roomCode);
+        }
+
+        if (wasInProgress && !hadAnswered && room.AllPlayersAnswered())
+        {
+            var finalized = FinalizeRound(room);
+            return new DisconnectFromRoomResult(true,
+                Outcome: finalized.Outcome == SubmitAnswerOutcome.GameOver
+                    ? DisconnectOutcome.GameOver
+                    : DisconnectOutcome.RoundComplete,
+                RoomCode: roomCode,
+                RoundResult: finalized.RoundResult,
+                NextQuestion: finalized.NextQuestion,
+                FinalLeaderboard: finalized.FinalLeaderboard);
+        }
+
+        if (wasInProgress && room.AllPlayersReady())
+        {
+            room.ClearReady();
+            if (room.Status == RoomStatus.Finished)
+            {
+                var leaderboard = room.Members
+                    .OrderByDescending(m => m.Points)
+                    .Select(RoomMapper.ToPlayer)
+                    .ToList();
+                return new DisconnectFromRoomResult(true,
+                    Outcome: DisconnectOutcome.ReadyPhaseComplete,
+                    RoomCode: roomCode,
+                    FinalLeaderboard: leaderboard);
+            }
+            return new DisconnectFromRoomResult(true,
+                Outcome: DisconnectOutcome.ReadyPhaseComplete,
+                RoomCode: roomCode,
+                NextQuestion: RoomMapper.ToQuestion(room));
+        }
+
+        return new DisconnectFromRoomResult(true, Outcome: DisconnectOutcome.PlayerRemoved, RoomCode: roomCode);
+    }
+
+    public SignalReadyResult SignalPlayerReady(string roomCode, string playerUuid)
+    {
+        if (!roomRepository.TryGet(roomCode, out var room))
+            return new SignalReadyResult(false, Error: $"Room '{roomCode}' not found.");
+
+        room.SignalReady(playerUuid);
+
+        if (!room.AllPlayersReady())
+            return new SignalReadyResult(true, AllReady: false);
+
+        room.ClearReady();
+
+        if (room.Status == RoomStatus.Finished)
+        {
+            var leaderboard = room.Members
+                .OrderByDescending(m => m.Points)
+                .Select(RoomMapper.ToPlayer)
+                .ToList();
+            return new SignalReadyResult(true, AllReady: true, FinalLeaderboard: leaderboard);
+        }
+
+        return new SignalReadyResult(true, AllReady: true, NextQuestion: RoomMapper.ToQuestion(room));
+    }
+
+    public RestartGameResult RestartGame(string roomCode, string playerUuid, List<TriviaQuestion> questions, string categoryName)
+    {
+        if (!roomRepository.TryGet(roomCode, out var room))
+            return new RestartGameResult(false, $"Room '{roomCode}' not found.");
+
+        if (room.Owner.Uuid != playerUuid)
+            return new RestartGameResult(false, "Only the room owner can restart the game.");
+
+        room.Restart(questions, categoryName);
+
+        return new RestartGameResult(true, Room: RoomMapper.ToRoom(room));
     }
 
     private static SubmitAnswerResult FinalizeRound(Domain.Entities.Room room)

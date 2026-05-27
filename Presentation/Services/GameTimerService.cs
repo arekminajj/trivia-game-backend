@@ -14,7 +14,9 @@ public class GameTimerService(
     IOptions<GameOptions> options) : IGameTimerService
 {
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _timers = new();
+    private readonly ConcurrentDictionary<string, CancellationTokenSource> _readyTimers = new();
     private readonly int _timeoutSeconds = options.Value.QuestionTimeoutSeconds;
+    private readonly int _readyTimeoutSeconds = options.Value.ReadyTimeoutSeconds;
 
     public void StartQuestionTimer(string roomCode, int questionIndex)
     {
@@ -30,6 +32,40 @@ public class GameTimerService(
             cts.Cancel();
     }
 
+    public void StartReadyTimer(string roomCode, QuestionResponse? nextQuestion, List<PlayerResponse>? finalLeaderboard)
+    {
+        CancelReadyTimer(roomCode);
+        var cts = new CancellationTokenSource();
+        _readyTimers[roomCode] = cts;
+        _ = RunReadyAsync(roomCode, nextQuestion, finalLeaderboard, cts.Token);
+    }
+
+    public bool CancelReadyTimer(string roomCode)
+    {
+        if (_readyTimers.TryRemove(roomCode, out var cts))
+        {
+            cts.Cancel();
+            return true;
+        }
+        return false;
+    }
+
+    private async Task RunReadyAsync(string roomCode, QuestionResponse? nextQuestion, List<PlayerResponse>? finalLeaderboard, CancellationToken ct)
+    {
+        try { await Task.Delay(TimeSpan.FromSeconds(_readyTimeoutSeconds), ct); }
+        catch (OperationCanceledException) { return; }
+
+        _readyTimers.TryRemove(roomCode, out _);
+
+        if (finalLeaderboard != null)
+            await hubContext.Clients.Group(roomCode).SendAsync("GameEnded", finalLeaderboard);
+        else if (nextQuestion != null)
+        {
+            await hubContext.Clients.Group(roomCode).SendAsync("QuestionReceived", nextQuestion);
+            StartQuestionTimer(roomCode, nextQuestion.Index);
+        }
+    }
+
     private async Task RunAsync(string roomCode, int questionIndex, CancellationToken ct)
     {
         try { await Task.Delay(TimeSpan.FromSeconds(_timeoutSeconds), ct); }
@@ -40,15 +76,6 @@ public class GameTimerService(
 
         await hubContext.Clients.Group(roomCode).SendAsync("QuestionTimedOut");
         await hubContext.Clients.Group(roomCode).SendAsync("RoundEnded", result.RoundResult);
-
-        if (result.Outcome == SubmitAnswerOutcome.GameOver)
-        {
-            await hubContext.Clients.Group(roomCode).SendAsync("GameEnded", result.FinalLeaderboard);
-        }
-        else
-        {
-            await hubContext.Clients.Group(roomCode).SendAsync("QuestionReceived", result.NextQuestion);
-            StartQuestionTimer(roomCode, result.NextQuestion!.Index);
-        }
+        StartReadyTimer(roomCode, result.NextQuestion, result.FinalLeaderboard);
     }
 }

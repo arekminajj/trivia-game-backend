@@ -24,6 +24,7 @@ public class RoomService(ITriviaService triviaService, IRoomRepository roomRepos
             JoinCode = GenerateCode(),
             Owner = owner,
             Questions = questions,
+            CategoryName = questions.FirstOrDefault()?.Category ?? string.Empty,
         };
         room.Members.Add(owner);
 

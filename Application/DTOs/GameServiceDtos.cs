@@ -2,10 +2,27 @@ namespace trivia_game.Application.DTOs;
 
 public enum SubmitAnswerOutcome
 {
-    Accepted,      // answer recorded, waiting for other players
-    RoundComplete, // all answered, next question ready
-    GameOver       // all answered, no more questions
+    Accepted,
+    RoundComplete,
+    GameOver
 }
+
+public enum DisconnectOutcome
+{
+    PlayerRemoved,
+    RoundComplete,
+    GameOver,
+    RoomEmpty,
+    ReadyPhaseComplete,
+    RoomClosedByHost
+}
+
+public sealed record SignalReadyResult(
+    bool Success,
+    string? Error = null,
+    bool AllReady = false,
+    QuestionResponse? NextQuestion = null,
+    List<PlayerResponse>? FinalLeaderboard = null);
 
 public sealed record ConnectToRoomResult(
     bool Success,
@@ -22,6 +39,20 @@ public sealed record SubmitAnswerResult(
     bool Success,
     string? Error = null,
     SubmitAnswerOutcome? Outcome = null,
+    RoundResultResponse? RoundResult = null,
+    QuestionResponse? NextQuestion = null,
+    List<PlayerResponse>? FinalLeaderboard = null);
+
+public sealed record RestartGameResult(
+    bool Success,
+    string? Error = null,
+    RoomResponse? Room = null);
+
+public sealed record DisconnectFromRoomResult(
+    bool Success,
+    string? Error = null,
+    DisconnectOutcome? Outcome = null,
+    string? RoomCode = null,
     RoundResultResponse? RoundResult = null,
     QuestionResponse? NextQuestion = null,
     List<PlayerResponse>? FinalLeaderboard = null);

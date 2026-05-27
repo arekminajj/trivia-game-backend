@@ -9,7 +9,8 @@ public sealed record RoomResponse(
     PlayerResponse Owner,
     List<PlayerResponse> Members,
     int TotalQuestions,
-    int CurrentQuestionIndex);
+    int CurrentQuestionIndex,
+    string CategoryName);
 
 public sealed record PlayerResponse(
     string Uuid,

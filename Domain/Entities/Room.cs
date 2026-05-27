@@ -10,6 +10,7 @@ public class Room
     public List<RoomMember> Members { get; } = new();
     public DateTime CreatedAt { get; } = DateTime.UtcNow;
     public List<TriviaQuestion> Questions { get; init; } = new();
+    public string CategoryName { get; set; } = string.Empty;
     public RoomStatus Status { get; private set; } = RoomStatus.Waiting;
     public int CurrentQuestionIndex { get; private set; } = -1;
 
@@ -17,6 +18,7 @@ public class Room
     public List<string> CurrentShuffledAnswers { get; private set; } = new();
 
     private readonly Dictionary<string, string> _currentRoundAnswers = new();
+    private readonly HashSet<string> _readyPlayers = new();
     public IReadOnlyDictionary<string, string> CurrentRoundAnswers => _currentRoundAnswers;
 
     public TriviaQuestion? CurrentQuestion =>
@@ -39,12 +41,28 @@ public class Room
     {
         if (Status != RoomStatus.InProgress) return false;
         if (Members.All(m => m.Uuid != playerUuid)) return false;
+        // Empty string is the server-side timeout sentinel; any other value must be a valid choice
+        if (answer != string.Empty && !CurrentShuffledAnswers.Contains(answer)) return false;
         _currentRoundAnswers[playerUuid] = answer;
         return true;
     }
 
     public bool AllPlayersAnswered() =>
-        Members.All(m => _currentRoundAnswers.ContainsKey(m.Uuid));
+        Members.Count > 0 && Members.All(m => _currentRoundAnswers.ContainsKey(m.Uuid));
+
+    public void SignalReady(string playerUuid) => _readyPlayers.Add(playerUuid);
+    public bool AllPlayersReady() => Members.Count > 0 && Members.All(m => _readyPlayers.Contains(m.Uuid));
+    public void ClearReady() => _readyPlayers.Clear();
+
+    public bool RemoveMember(string playerUuid)
+    {
+        var member = Members.FirstOrDefault(m => m.Uuid == playerUuid);
+        if (member is null) return false;
+        Members.Remove(member);
+        _currentRoundAnswers.Remove(playerUuid);
+        _readyPlayers.Remove(playerUuid);
+        return true;
+    }
 
     public void ScoreCurrentRound()
     {
@@ -82,6 +100,23 @@ public class Room
         // Seed with room + question index so the order is deterministic for all clients
         var rng = new Random((Uuid + CurrentQuestionIndex).GetHashCode());
         CurrentShuffledAnswers = all.OrderBy(_ => rng.Next()).ToList();
+    }
+
+    public void Restart(List<TriviaQuestion> newQuestions, string newCategoryName)
+    {
+        Questions.Clear();
+        Questions.AddRange(newQuestions);
+        CategoryName = newCategoryName;
+        Status = RoomStatus.Waiting;
+        CurrentQuestionIndex = -1;
+        CurrentShuffledAnswers.Clear();
+        _currentRoundAnswers.Clear();
+        _readyPlayers.Clear();
+        foreach (var member in Members)
+        {
+            member.Points = 0;
+            member.CorrectAnswers = 0;
+        }
     }
 
     private static int PointsFor(string difficulty) => difficulty.ToLowerInvariant() switch

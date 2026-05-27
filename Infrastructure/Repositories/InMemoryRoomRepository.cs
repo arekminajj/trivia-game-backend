@@ -14,4 +14,6 @@ public class InMemoryRoomRepository : IRoomRepository
         _rooms.TryGetValue(joinCode, out room!);
 
     public List<Room> GetAll() => _rooms.Values.ToList();
+
+    public void Remove(string joinCode) => _rooms.TryRemove(joinCode, out _);
 }

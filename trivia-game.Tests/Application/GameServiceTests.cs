@@ -118,7 +118,7 @@ public class GameServiceTests
         var room = MakeStartedRoom(questions: 2);
         var (svc, _) = Setup(room);
 
-        var result = svc.SubmitAnswer(room.JoinCode, room.Members[0].Uuid, "x");
+        var result = svc.SubmitAnswer(room.JoinCode, room.Members[0].Uuid, "Correct");
         Assert.True(result.Success);
         Assert.Equal(SubmitAnswerOutcome.Accepted, result.Outcome);
     }
@@ -204,8 +204,8 @@ public class GameServiceTests
         var room = MakeStartedRoom(questions: 2);
         var (svc, _) = Setup(room);
         // Complete Q0 naturally
-        svc.SubmitAnswer(room.JoinCode, room.Members[0].Uuid, "x");
-        svc.SubmitAnswer(room.JoinCode, room.Members[1].Uuid, "x");
+        svc.SubmitAnswer(room.JoinCode, room.Members[0].Uuid, "Correct");
+        svc.SubmitAnswer(room.JoinCode, room.Members[1].Uuid, "Wrong");
         // Timer fires late for Q0 — should be rejected (now on Q1)
         Assert.False(svc.TimeOutRound(room.JoinCode, questionIndex: 0).Success);
     }
