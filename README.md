@@ -11,15 +11,27 @@ Built with ASP.NET Core 10. Provides a REST API for room management and a Signal
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
 - Python 3.9+ (only for running the integration test script)
 
-## Running the server
+## Public deployment
+
+The backend is publicly accessible via a [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) and is live at:
+
+| Resource | URL |
+|----------|-----|
+| API base | `https://trivia.arkadiuszcios.online` |
+| Swagger UI | [`https://trivia.arkadiuszcios.online/scalar/v1`](https://trivia.arkadiuszcios.online/scalar/v1) |
+| SignalR hub | `wss://trivia.arkadiuszcios.online/hubs/game` |
+| Privacy policy | [`https://trivia.arkadiuszcios.online/privacy`](https://trivia.arkadiuszcios.online/privacy) |
+
+---
+
+## Running locally
 
 ```bash
 dotnet run
 ```
 
 Server starts at `http://localhost:5114`.  
-Swagger UI: `http://localhost:5114/scalar/v1`  
-Public API + Swagger: `https://trivia.arkadiuszcios.online` / `https://trivia.arkadiuszcios.online/scalar/v1`
+Swagger UI: `http://localhost:5114/scalar/v1`
 
 ---
 
