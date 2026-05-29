@@ -18,7 +18,8 @@ dotnet run
 ```
 
 Server starts at `http://localhost:5114`.  
-Swagger UI (development only): `http://localhost:5114/scalar/v1`
+Swagger UI: `http://localhost:5114/scalar/v1`  
+Public API + Swagger: `https://trivia.arkadiuszcios.online` / `https://trivia.arkadiuszcios.online/scalar/v1`
 
 ---
 
@@ -157,6 +158,12 @@ If OpenTDB is unreachable the server retries the request **3 times** with expone
 (2 s → 4 s → 8 s). If all retries fail the endpoint returns `503 Service Unavailable` with an
 explanatory message. No game data is lost — in-progress rooms are unaffected because questions
 are fetched once at room creation and stored in memory for the duration of the game.
+
+---
+
+## Privacy Policy
+
+Available at [`https://trivia.arkadiuszcios.online/privacy`](https://trivia.arkadiuszcios.online/privacy) and in [`PRIVACY.md`](PRIVACY.md).
 
 ---
 

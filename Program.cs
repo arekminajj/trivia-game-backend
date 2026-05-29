@@ -51,11 +51,8 @@ app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
     await context.Response.WriteAsJsonAsync(new { error = message });
 }));
 
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-    app.MapScalarApiReference(options => options.Title = "Trivia Game API");
-}
+app.MapOpenApi();
+app.MapScalarApiReference(options => options.Title = "Trivia Game API");
 
 app.MapControllers();
 app.MapHub<GameHub>("/hubs/game");
