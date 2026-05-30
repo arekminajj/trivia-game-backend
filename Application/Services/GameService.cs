@@ -10,8 +10,8 @@ namespace trivia_game.Application.Services;
 
 public class GameService(IRoomRepository roomRepository) : IGameService
 {
-    private static readonly ConcurrentDictionary<string, object> _readyLocks = new();
-    private static object ReadyLock(string roomCode) => _readyLocks.GetOrAdd(roomCode, _ => new object());
+    private static readonly ConcurrentDictionary<string, object> _roomLocks = new();
+    private static object RoomLock(string roomCode) => _roomLocks.GetOrAdd(roomCode, _ => new object());
     public ConnectToRoomResult ConnectToRoom(string roomCode, string playerUuid)
     {
         if (!roomRepository.TryGet(roomCode, out var room))
@@ -43,33 +43,39 @@ public class GameService(IRoomRepository roomRepository) : IGameService
 
     public SubmitAnswerResult SubmitAnswer(string roomCode, string playerUuid, string answer)
     {
-        if (!roomRepository.TryGet(roomCode, out var room))
-            return new SubmitAnswerResult(false, $"Room '{roomCode}' not found.");
-
-        if (!room.SubmitAnswer(playerUuid, answer))
-            return new SubmitAnswerResult(false, "Could not record answer (game not in progress, unknown player, or invalid answer).");
-
-        if (!room.AllPlayersAnswered())
+        lock (RoomLock(roomCode))
         {
-            roomRepository.Save(room);
-            return new SubmitAnswerResult(true, Outcome: SubmitAnswerOutcome.Accepted);
-        }
+            if (!roomRepository.TryGet(roomCode, out var room))
+                return new SubmitAnswerResult(false, $"Room '{roomCode}' not found.");
 
-        return FinalizeRound(room);
+            if (!room.SubmitAnswer(playerUuid, answer))
+                return new SubmitAnswerResult(false, "Could not record answer (game not in progress, unknown player, or invalid answer).");
+
+            if (!room.AllPlayersAnswered())
+            {
+                roomRepository.Save(room);
+                return new SubmitAnswerResult(true, Outcome: SubmitAnswerOutcome.Accepted);
+            }
+
+            return FinalizeRound(room);
+        }
     }
 
     public SubmitAnswerResult TimeOutRound(string roomCode, int questionIndex)
     {
-        if (!roomRepository.TryGet(roomCode, out var room))
-            return new SubmitAnswerResult(false, $"Room '{roomCode}' not found.");
+        lock (RoomLock(roomCode))
+        {
+            if (!roomRepository.TryGet(roomCode, out var room))
+                return new SubmitAnswerResult(false, $"Room '{roomCode}' not found.");
 
-        if (room.Status != RoomStatus.InProgress || room.CurrentQuestionIndex != questionIndex)
-            return new SubmitAnswerResult(false, "Round already advanced.");
+            if (room.Status != RoomStatus.InProgress || room.CurrentQuestionIndex != questionIndex)
+                return new SubmitAnswerResult(false, "Round already advanced.");
 
-        foreach (var member in room.Members.Where(m => !room.CurrentRoundAnswers.ContainsKey(m.Uuid)))
-            room.SubmitAnswer(member.Uuid, string.Empty);
+            foreach (var member in room.Members.Where(m => !room.CurrentRoundAnswers.ContainsKey(m.Uuid)))
+                room.SubmitAnswer(member.Uuid, string.Empty);
 
-        return FinalizeRound(room);
+            return FinalizeRound(room);
+        }
     }
 
     public DisconnectFromRoomResult DisconnectFromRoom(string roomCode, string playerUuid)
@@ -136,7 +142,7 @@ public class GameService(IRoomRepository roomRepository) : IGameService
 
     public SignalReadyResult SignalPlayerReady(string roomCode, string playerUuid)
     {
-        lock (ReadyLock(roomCode))
+        lock (RoomLock(roomCode))
         {
             if (!roomRepository.TryGet(roomCode, out var room))
                 return new SignalReadyResult(false, Error: $"Room '{roomCode}' not found.");

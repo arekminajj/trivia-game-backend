@@ -79,6 +79,7 @@ public class Room
     {
         if (Status != RoomStatus.InProgress) return false;
         CurrentRoundAnswers.Clear();
+        ReadyPlayers.Clear();
         CurrentQuestionIndex++;
         if (CurrentQuestionIndex >= Questions.Count)
         {
