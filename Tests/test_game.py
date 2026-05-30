@@ -10,6 +10,7 @@ Usage:
 The server must be running on BASE_URL before tests start.
 """
 
+import os
 import sys
 import time
 import threading
@@ -17,8 +18,13 @@ import requests
 from queue import Queue, Empty
 from signalrcore.hub_connection_builder import HubConnectionBuilder
 
-BASE_URL = "http://localhost:5114"
+BASE_URL = os.environ.get("BASE_URL", "https://trivia.arkadiuszcios.online")
 HUB_URL  = f"{BASE_URL}/hubs/game"
+API_KEY  = os.environ.get("API_KEY", "")
+
+_session = requests.Session()
+if API_KEY:
+    _session.headers["X-Api-Key"] = API_KEY
 
 PASS = "\033[92mPASS\033[0m"
 FAIL = "\033[91mFAIL\033[0m"
@@ -46,7 +52,7 @@ def ok(label):
 
 def test_get_categories():
     print("\n[GET /api/trivia/categories]")
-    r = requests.get(f"{BASE_URL}/api/trivia/categories")
+    r = _session.get(f"{BASE_URL}/api/trivia/categories")
     assert_eq("status", r.status_code, 200)
     cats = r.json()
     assert_true("at least one category", len(cats) > 0)
@@ -58,7 +64,7 @@ def test_get_categories():
 def test_create_room(owner_name="Alice", amount=3):
     print(f"\n[POST /api/rooms] owner={owner_name}, amount={amount}")
     payload = {"ownerName": owner_name, "amount": amount, "categoryId": None, "type": "multiple"}
-    r = requests.post(f"{BASE_URL}/api/rooms", json=payload)
+    r = _session.post(f"{BASE_URL}/api/rooms", json=payload)
     assert_eq("status", r.status_code, 200)
     room = r.json()
     assert_true("joinCode present",   bool(room.get("joinCode")))
@@ -71,7 +77,7 @@ def test_create_room(owner_name="Alice", amount=3):
 
 def test_join_room(join_code, display_name="Bob"):
     print(f"\n[POST /api/rooms/join] code={join_code}, name={display_name}")
-    r = requests.post(f"{BASE_URL}/api/rooms/join",
+    r = _session.post(f"{BASE_URL}/api/rooms/join",
                       json={"joinCode": join_code, "displayName": display_name})
     assert_eq("status", r.status_code, 200)
     body = r.json()
@@ -85,7 +91,7 @@ def test_join_room(join_code, display_name="Bob"):
 
 def test_join_invalid_code():
     print("\n[POST /api/rooms/join] invalid code")
-    r = requests.post(f"{BASE_URL}/api/rooms/join",
+    r = _session.post(f"{BASE_URL}/api/rooms/join",
                       json={"joinCode": "ZZZZZZ", "displayName": "Ghost"})
     assert_eq("status", r.status_code, 404)
     ok("404 returned for unknown join code")
@@ -93,7 +99,7 @@ def test_join_invalid_code():
 
 def test_get_rooms(min_count=1):
     print("\n[GET /api/rooms]")
-    r = requests.get(f"{BASE_URL}/api/rooms")
+    r = _session.get(f"{BASE_URL}/api/rooms")
     assert_eq("status", r.status_code, 200)
     rooms = r.json()
     assert_true(f"at least {min_count} room", len(rooms) >= min_count)
@@ -115,7 +121,8 @@ class HubClient:
     def __init__(self, name: str):
         self.name = name
         self._queues: dict[str, Queue] = {e: Queue() for e in self.EVENTS}
-        self._conn = HubConnectionBuilder().with_url(HUB_URL).build()
+        hub_url = f"{HUB_URL}?api-key={API_KEY}" if API_KEY else HUB_URL
+        self._conn = HubConnectionBuilder().with_url(hub_url).build()
         for event in self.EVENTS:
             self._conn.on(event, self._handler(event))
 
