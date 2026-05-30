@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Diagnostics;
 using StackExchange.Redis;
 using Polly;
@@ -10,6 +11,7 @@ using trivia_game.Domain.Interfaces.Providers;
 using trivia_game.Domain.Interfaces.Repositories;
 using trivia_game.Infrastructure.ExternalApis.OpenTdb;
 using trivia_game.Infrastructure.Repositories;
+using trivia_game.Presentation.Auth;
 using trivia_game.Presentation.Hubs;
 using trivia_game.Presentation.Services;
 
@@ -18,6 +20,12 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
 builder.Services.AddOpenApi();
+
+builder.Services
+    .AddAuthentication(ApiKeyAuthenticationHandler.SchemeName)
+    .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(
+        ApiKeyAuthenticationHandler.SchemeName, null);
+builder.Services.AddAuthorization();
 
 builder.Services.Configure<GameOptions>(builder.Configuration.GetSection("Game"));
 
@@ -54,6 +62,9 @@ app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
     context.Response.ContentType = "application/json";
     await context.Response.WriteAsJsonAsync(new { error = message });
 }));
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapOpenApi();
 app.MapScalarApiReference(options => options.Title = "Trivia Game API");

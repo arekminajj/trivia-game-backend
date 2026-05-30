@@ -35,6 +35,44 @@ Swagger UI: `http://localhost:5114/scalar/v1`
 
 ---
 
+## Authentication
+
+All API endpoints and the SignalR hub require an API key. The `/privacy` endpoint is public.
+
+### REST requests
+
+Pass the key in the `X-Api-Key` header:
+
+```http
+X-Api-Key: your-api-key
+```
+
+### SignalR connection
+
+WebSocket handshakes cannot carry custom headers, so pass the key as a query parameter instead:
+
+```
+wss://trivia.arkadiuszcios.online/hubs/game?api-key=your-api-key
+```
+
+### Configuration
+
+Set the key via the `ApiKey` environment variable (recommended for production):
+
+```bash
+ApiKey=your-api-key dotnet run
+```
+
+Or override it in `appsettings.Development.json` for local development. The default dev key is `dev-api-key`.
+
+Requests missing or providing a wrong key receive `401 Unauthorized`:
+
+```json
+{ "error": "Invalid or missing API key." }
+```
+
+---
+
 ## REST API
 
 | Method | Endpoint | Description |
@@ -157,6 +195,7 @@ All API errors are returned as structured JSON:
 
 | HTTP status | Cause |
 |-------------|-------|
+| `401` | Missing or invalid API key |
 | `400` | Invalid request parameters (e.g. bad question type or filter combination) |
 | `404` | Room not found |
 | `422` | Invalid game operation (e.g. non-owner trying to start) |
