@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using trivia_game.Application.DTOs;
 using trivia_game.Application.Interfaces;
 
 namespace trivia_game.Presentation.Hubs;
 
+[Authorize]
 public class GameHub(IGameService gameService, IGameTimerService timerService, ITriviaService triviaService) : Hub
 {
     /// <summary>
