@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using trivia_game.Application.DTOs;
 using trivia_game.Application.Interfaces;
 using trivia_game.Application.Mappings;
@@ -9,6 +10,8 @@ namespace trivia_game.Application.Services;
 
 public class GameService(IRoomRepository roomRepository) : IGameService
 {
+    private static readonly ConcurrentDictionary<string, object> _readyLocks = new();
+    private static object ReadyLock(string roomCode) => _readyLocks.GetOrAdd(roomCode, _ => new object());
     public ConnectToRoomResult ConnectToRoom(string roomCode, string playerUuid)
     {
         if (!roomRepository.TryGet(roomCode, out var room))
@@ -133,30 +136,33 @@ public class GameService(IRoomRepository roomRepository) : IGameService
 
     public SignalReadyResult SignalPlayerReady(string roomCode, string playerUuid)
     {
-        if (!roomRepository.TryGet(roomCode, out var room))
-            return new SignalReadyResult(false, Error: $"Room '{roomCode}' not found.");
-
-        room.SignalReady(playerUuid);
-
-        if (!room.AllPlayersReady())
+        lock (ReadyLock(roomCode))
         {
+            if (!roomRepository.TryGet(roomCode, out var room))
+                return new SignalReadyResult(false, Error: $"Room '{roomCode}' not found.");
+
+            room.SignalReady(playerUuid);
+
+            if (!room.AllPlayersReady())
+            {
+                roomRepository.Save(room);
+                return new SignalReadyResult(true, AllReady: false);
+            }
+
+            room.ClearReady();
             roomRepository.Save(room);
-            return new SignalReadyResult(true, AllReady: false);
+
+            if (room.Status == RoomStatus.Finished)
+            {
+                var leaderboard = room.Members
+                    .OrderByDescending(m => m.Points)
+                    .Select(RoomMapper.ToPlayer)
+                    .ToList();
+                return new SignalReadyResult(true, AllReady: true, FinalLeaderboard: leaderboard);
+            }
+
+            return new SignalReadyResult(true, AllReady: true, NextQuestion: RoomMapper.ToQuestion(room));
         }
-
-        room.ClearReady();
-        roomRepository.Save(room);
-
-        if (room.Status == RoomStatus.Finished)
-        {
-            var leaderboard = room.Members
-                .OrderByDescending(m => m.Points)
-                .Select(RoomMapper.ToPlayer)
-                .ToList();
-            return new SignalReadyResult(true, AllReady: true, FinalLeaderboard: leaderboard);
-        }
-
-        return new SignalReadyResult(true, AllReady: true, NextQuestion: RoomMapper.ToQuestion(room));
     }
 
     public RestartGameResult RestartGame(string roomCode, string playerUuid, List<TriviaQuestion> questions, string categoryName)

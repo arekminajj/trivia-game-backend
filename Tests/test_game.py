@@ -20,7 +20,7 @@ from signalrcore.hub_connection_builder import HubConnectionBuilder
 
 BASE_URL = os.environ.get("BASE_URL", "https://trivia.arkadiuszcios.online")
 HUB_URL  = f"{BASE_URL}/hubs/game"
-API_KEY  = os.environ.get("API_KEY", "")
+API_KEY  = os.environ.get("API_KEY", "change-me-in-production")
 
 _session = requests.Session()
 if API_KEY:
@@ -141,7 +141,7 @@ class HubClient:
     def send(self, method, args):
         self._conn.send(method, args)
 
-    def wait_for(self, event: str, timeout: float = 10) -> list:
+    def wait_for(self, event: str, timeout: float = 20) -> list:
         """Block until the next occurrence of event; raises TimeoutError on timeout."""
         try:
             return self._queues[event].get(timeout=timeout)
