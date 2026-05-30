@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Diagnostics;
+using StackExchange.Redis;
 using Polly;
 using Scalar.AspNetCore;
 using trivia_game.Application.Interfaces;
@@ -26,7 +27,10 @@ builder.Services
     .AddSingleton<IGameService, GameService>()
     .AddSingleton<IGameTimerService, GameTimerService>();
 
-builder.Services.AddSingleton<IRoomRepository, InMemoryRoomRepository>();
+var redisConnectionString = builder.Configuration["Redis:ConnectionString"]!;
+builder.Services.AddSingleton<IConnectionMultiplexer>(
+    ConnectionMultiplexer.Connect(redisConnectionString));
+builder.Services.AddSingleton<IRoomRepository, RedisRoomRepository>();
 
 builder.Services.AddHttpClient<ITriviaProvider, OpenTdbClient>(client =>
     client.BaseAddress = new Uri("https://opentdb.com/"))
@@ -51,11 +55,8 @@ app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
     await context.Response.WriteAsJsonAsync(new { error = message });
 }));
 
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-    app.MapScalarApiReference(options => options.Title = "Trivia Game API");
-}
+app.MapOpenApi();
+app.MapScalarApiReference(options => options.Title = "Trivia Game API");
 
 app.MapControllers();
 app.MapHub<GameHub>("/hubs/game");
