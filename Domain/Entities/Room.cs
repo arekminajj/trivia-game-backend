@@ -8,7 +8,7 @@ public class Room
     public string Uuid { get; init; } = Guid.NewGuid().ToString();
     public string JoinCode { get; init; } = string.Empty;
     public RoomMember Owner { get; init; } = default!;
-    public List<RoomMember> Members { get; } = new();
+    public List<RoomMember> Members { get; init; } = new();
     public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
     public List<TriviaQuestion> Questions { get; init; } = new();
     public string CategoryName { get; set; } = string.Empty;
