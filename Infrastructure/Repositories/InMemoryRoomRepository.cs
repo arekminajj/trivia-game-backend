@@ -16,4 +16,5 @@ public class InMemoryRoomRepository : IRoomRepository
     public List<Room> GetAll() => _rooms.Values.ToList();
 
     public void Remove(string joinCode) => _rooms.TryRemove(joinCode, out _);
+    public void Save(Room room) { } // in-memory: object is already mutated in place
 }

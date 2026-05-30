@@ -39,6 +39,7 @@ public class RoomService(ITriviaService triviaService, IRoomRepository roomRepos
 
         var member = new RoomMember { DisplayName = request.DisplayName };
         room.Members.Add(member);
+        roomRepository.Save(room);
 
         return new JoinRoomResponse(member.Uuid, RoomMapper.ToRoom(room));
     }
