@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using trivia_game.Application.DTOs;
 using trivia_game.Application.Interfaces;
@@ -6,6 +7,7 @@ using trivia_game.Domain.Exceptions;
 namespace trivia_game.Presentation.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/rooms")]
 public class RoomController(IRoomService roomService) : ControllerBase
 {

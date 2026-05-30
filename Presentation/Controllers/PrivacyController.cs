@@ -1,8 +1,10 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace trivia_game.Presentation.Controllers;
 
 [ApiController]
+[AllowAnonymous]
 [Route("privacy")]
 public class PrivacyController : ControllerBase
 {
